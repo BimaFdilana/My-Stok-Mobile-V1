@@ -48,6 +48,7 @@ class _KasirPageState extends State<KasirPage> {
       items.where((e) => e.quantity > 0).fold(0, (sum, e) => sum + e.quantity);
 
   void goToPayment() {
+    if (totalItem == 0) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -62,146 +63,210 @@ class _KasirPageState extends State<KasirPage> {
   @override
   Widget build(BuildContext context) {
     final responsive = Responsive(context);
+    const Color warnaBiruDesain = Color(0xFF0066FF);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Kasir', style: TextStyle(fontSize: responsive.appBarFontSize)),
-        backgroundColor: AppColors.kasir,
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: const Color(0xFFF8FAFC), // Latar belakang abu-abu soft biar Card-nya stand-out
+      // AppBar dihilangkan/dibuat transparan karena kita pakai banner kustom di dalam body
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : responsive.isMobile
-              ? _buildMobileLayout(responsive)
-              : _buildTabletLayout(responsive),
+          : SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.all(responsive.horizontalPadding),
+                  child: Column(
+                    children: [
+                      // 1. BANNER KUSTOM HEADER KASIR (Paling Atas)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: warnaBiruDesain,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.point_of_sale, color: Colors.white, size: 36),
+                                SizedBox(width: 16),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Kasir',
+                                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Buat transaksi penjualan',
+                                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('Admin Toko', style: TextStyle(color: Colors.white, fontSize: 13)),
+                                SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(Icons.account_circle, color: Colors.white70, size: 16),
+                                    SizedBox(width: 4),
+                                    Text('Profil', style: TextStyle(color: Colors.white, fontSize: 13, decoration: TextDecoration.underline)),
+                                  ],
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 2. LAYOUT RESPONSIVE (GRID BARANG & KERANJANG)
+                      responsive.isMobile 
+                          ? _buildMobileLayout(responsive, warnaBiruDesain)
+                          : _buildTabletLayout(responsive, warnaBiruDesain),
+                    ],
+                  ),
+                ),
+              ),
+            ),
     );
   }
 
-  Widget _buildMobileLayout(Responsive responsive) {
+  Widget _buildMobileLayout(Responsive responsive, Color warnaBiru) {
     return Column(
       children: [
-        Expanded(child: _buildGrid(responsive)),
-        if (totalItem > 0) _buildBottomBar(responsive),
+        _buildGrid(responsive, warnaBiru),
+        const SizedBox(height: 20),
+        _buildCartPanel(responsive, warnaBiru),
       ],
     );
   }
 
-  Widget _buildTabletLayout(Responsive responsive) {
+  Widget _buildTabletLayout(Responsive responsive, Color warnaBiru) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(flex: 3, child: _buildGrid(responsive)),
-        SizedBox(
-          width: responsive.value<double>(mobile: 0, tablet: 280, desktop: 360),
-          child: _buildCartPanel(responsive),
+        // Grid Menu (Sisi Kiri)
+        Expanded(
+          flex: 2,
+          child: _buildGrid(responsive, warnaBiru),
+        ),
+        const SizedBox(width: 24),
+        // Panel Pesanan (Sisi Kanan)
+        Expanded(
+          flex: 1,
+          child: _buildCartPanel(responsive, warnaBiru),
         ),
       ],
     );
   }
 
-  Widget _buildGrid(Responsive responsive) {
-    final crossCount = responsive.isMobile ? 1 : responsive.kasirGridCount;
+  Widget _buildGrid(Responsive responsive, Color warnaBiru) {
+    final crossCount = responsive.isMobile ? 2 : 2; // Paksa 2 kolom agar pas proporsinya seperti di gambar
 
-    if (responsive.isMobile) {
-      return ListView.builder(
-        padding: responsive.pagePadding,
-        itemCount: items.length,
-        itemBuilder: (context, index) => _buildListCard(items[index], responsive),
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossCount,
+        childAspectRatio: 0.82,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) => _buildGridCard(items[index], responsive, warnaBiru),
+    );
+  }
+
+  Widget _buildGridCard(KasirItem item, Responsive responsive, Color warnaBiru) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Gambar Menu
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: Api.storageUrl(item.foto) != null
+                  ? Image.network(Api.storageUrl(item.foto)!, fit: BoxFit.cover, width: double.infinity,
+                      errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.image_outlined, size: 48)))
+                  : Container(color: Colors.grey[200], child: const Icon(Icons.image_outlined, size: 48)),
+            ),
+          ),
+          // Info Teks & Button
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(
+                  item.nama,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  formatRupiah(item.harga),
+                  style: TextStyle(color: warnaBiru, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 10),
+                // Custom Qty Button
+                _qtyControl(item, warnaBiru),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _qtyControl(KasirItem item, Color warnaBiru) {
+    if (item.quantity == 0) {
+      // Jika belum ditambah ke keranjang, tampilin Button "+ Tambah" warna biru penuh
+      return SizedBox(
+        width: double.infinity,
+        height: 36,
+        child: ElevatedButton.icon(
+          onPressed: () => setState(() => item.quantity++),
+          icon: const Icon(Icons.add_circle_outline, size: 16, color: Colors.white),
+          label: const Text('Tambah', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: warnaBiru,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
       );
     }
 
-    return GridView.builder(
-      padding: responsive.pagePadding,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossCount,
-        childAspectRatio: 0.85,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) => _buildGridCard(items[index], responsive),
-    );
-  }
-
-  Widget _buildListCard(KasirItem item, Responsive responsive) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Api.storageUrl(item.foto) != null
-                  ? Image.network(Api.storageUrl(item.foto)!, width: 60, height: 60, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, size: 60))
-                  : const Icon(Icons.fastfood, size: 60),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item.nama, style: TextStyle(fontWeight: FontWeight.bold, fontSize: responsive.cardFontTitle)),
-                  const SizedBox(height: 4),
-                  Text(formatRupiah(item.harga), style: TextStyle(color: Colors.grey[700], fontSize: responsive.cardFontBody)),
-                ],
-              ),
-            ),
-            _qtyControl(item),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridCard(KasirItem item, Responsive responsive) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Api.storageUrl(item.foto) != null
-                    ? Image.network(Api.storageUrl(item.foto)!, fit: BoxFit.cover, width: double.infinity,
-                        errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.fastfood, size: 48)))
-                    : Container(color: Colors.grey[200], child: const Icon(Icons.fastfood, size: 48)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(item.nama, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: responsive.cardFontBody)),
-            const SizedBox(height: 2),
-            Text(formatRupiah(item.harga), style: TextStyle(color: Colors.grey[700], fontSize: responsive.cardFontBody - 1)),
-            const SizedBox(height: 6),
-            _qtyControl(item),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _qtyControl(KasirItem item) {
+    // Jika quantity > 0, ubah ke mode counter plus-minus
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
-          onPressed: item.quantity > 0 ? () => setState(() => item.quantity--) : null,
-          icon: const Icon(Icons.remove_circle_outline),
-          color: Colors.red,
+          onPressed: () => setState(() => item.quantity--),
+          icon: const Icon(Icons.remove_circle, color: Colors.redAccent, size: 28),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text('${item.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ),
+        Text('${item.quantity}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         IconButton(
           onPressed: () => setState(() => item.quantity++),
-          icon: const Icon(Icons.add_circle_outline),
-          color: Colors.green,
+          icon: const Icon(Icons.add_circle, color: Colors.green, size: 28),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
         ),
@@ -209,108 +274,121 @@ class _KasirPageState extends State<KasirPage> {
     );
   }
 
-  Widget _buildBottomBar(Responsive responsive) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withValues(alpha: 0.3), blurRadius: 5, offset: const Offset(0, -2)),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$totalItem item', style: TextStyle(color: Colors.grey[600])),
-              Text(formatRupiah(totalHarga),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.kasir)),
-            ],
-          ),
-          ElevatedButton(
-            onPressed: goToPayment,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.kasir,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: const Text('Bayar', style: TextStyle(fontSize: 16, color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCartPanel(Responsive responsive) {
+  Widget _buildCartPanel(Responsive responsive, Color warnaBiru) {
     final cartItems = items.where((e) => e.quantity > 0).toList();
 
     return Container(
-      color: Colors.grey[50],
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Header Pesanan Biru Melengkung Atas Saja
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: AppColors.kasir,
-            child: Text('Keranjang',
-                style: TextStyle(color: Colors.white, fontSize: responsive.cardFontTitle, fontWeight: FontWeight.bold)),
-          ),
-          Expanded(
-            child: cartItems.isEmpty
-                ? Center(child: Text('Belum ada item', style: TextStyle(color: Colors.grey[500])))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: cartItems.length,
-                    itemBuilder: (context, index) {
-                      final item = cartItems[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.nama, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  Text('${item.quantity} x ${formatRupiah(item.harga)}',
-                                      style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                            Text(formatRupiah(item.subtotal), style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE0E0E0))),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: warnaBiru,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             ),
+            child: const Row(
+              children: [
+                Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Pesanan', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+
+          // Sub-Header Tabel (PRODUK | QTY | AKSI)
+          Container(
+            color: const Color(0xFFF8FAFC),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            child: const Row(
+              children: [
+                Expanded(flex: 3, child: Text('PRODUK', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54))),
+                Expanded(flex: 2, child: Text('QTY', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54))),
+                Expanded(flex: 2, child: Text('AKSI', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54))),
+              ],
+            ),
+          ),
+
+          // List Produk Terpilih
+          cartItems.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: Text('Belum ada pesanan', style: TextStyle(color: Colors.grey))),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: cartItems.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  itemBuilder: (context, index) {
+                    final item = cartItems[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      child: Row(
+                        children: [
+                          // Kolom Nama Produk
+                          Expanded(
+                            flex: 3,
+                            child: Text(item.nama, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          ),
+                          // Kolom Jumlah Item
+                          Expanded(
+                            flex: 2,
+                            child: Text('${item.quantity}x', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          ),
+                          // Kolom Tombol Delete tunggal
+                          Expanded(
+                            flex: 2,
+                            child: IconButton(
+                              onPressed: () => setState(() => item.quantity = 0),
+                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+          
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+          // Bagian Informasi Total Harga & Tombol Transaksi
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total ($totalItem item)', style: TextStyle(color: Colors.grey[700])),
-                    Text(formatRupiah(totalHarga),
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.kasir)),
+                    const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    Text(
+                      formatRupiah(totalHarga),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: warnaBiru),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  height: 45,
+                  child: ElevatedButton.icon(
                     onPressed: totalItem > 0 ? goToPayment : null,
+                    icon: const Icon(Icons.assignment_turned_in_outlined, size: 18, color: Colors.white),
+                    label: const Text('Lakukan Transaksi', style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.kasir,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: warnaBiru,
+                      disabledBackgroundColor: Colors.grey[300],
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Bayar', style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ),
               ],

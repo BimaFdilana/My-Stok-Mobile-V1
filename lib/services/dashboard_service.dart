@@ -9,6 +9,10 @@ class DashboardService {
       Uri.parse(Api.dashboard),
       headers: await SessionService.authHeaders(),
     );
+
+    print("Dashboard Response:");
+    print(response.body);
+
     return jsonDecode(response.body);
   }
 }
