@@ -101,41 +101,134 @@ class _BarangPageState extends State<BarangPage> {
         ? allItems
         : allItems.where((i) => i.kategoriId == selectedCategory!.id).toList();
 
+    const Color warnaBiruDesain = Color(0xFF0066FF); 
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Daftar Barang"),
-        backgroundColor: AppColors.barang,
+        title: const Text("Daftar Barang", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: warnaBiruDesain,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading
           ? const LoadingShimmer(itemCount: 6)
           : hasError
               ? ErrorState(message: "Gagal memuat produk.", onRetry: loadData)
               : RefreshIndicator(
-                  color: AppColors.barang,
+                  color: warnaBiruDesain,
                   onRefresh: loadData,
                   child: Column(
                     children: [
-                      Padding(
-                        padding: EdgeInsets.all(r.horizontalPadding),
-                        child: DropdownButtonFormField<CategoryModel?>(
-                          value: selectedCategory,
-                          decoration: const InputDecoration(
-                            labelText: "Pilih Kategori",
-                            prefixIcon: Icon(Icons.filter_list, color: AppColors.barang),
-                          ),
-                          items: [
-                            const DropdownMenuItem<CategoryModel?>(
-                              value: null,
-                              child: Text("Semua Kategori"),
-                            ),
-                            ...categories.map((k) => DropdownMenuItem<CategoryModel?>(
-                                  value: k,
-                                  child: Text(k.nama),
-                                )),
-                          ],
-                          onChanged: (value) => setState(() => selectedCategory = value),
-                        ),
+                     // --- CONTAINER DROPDOWN & TOMBOL SEJAJAR SAMA BESAR ---
+Padding(
+  padding: EdgeInsets.all(r.horizontalPadding),
+  child: Row(
+    children: [
+      // 1. Dropdown Kategori (Kiri)
+      Expanded(
+        child: Container(
+          height: 45,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: DropdownButtonHideUnderline(
+            // Menggunakan LayoutBuilder agar kita bisa mengambil ukuran lebar pasti dari Container pembungkusnya
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return DropdownButton<CategoryModel?>(
+                  value: selectedCategory,
+                  isExpanded: true, // Memaksa teks di dalam tombol memenuhi Container
+                  menuMaxHeight: 250,
+                  alignment: Alignment.bottomLeft,
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  hint: const Text("Pilih Kategori"),
+                  icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+                  
+                  // --- TRIK AMPUH: Gunakan selectedItemBuilder agar tampilan saat terpilih tetap rapi ---
+                  selectedItemBuilder: (BuildContext context) {
+                    return [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text("Semua Kategori", overflow: TextOverflow.ellipsis),
                       ),
+                      ...categories.map((k) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(k.nama, overflow: TextOverflow.ellipsis),
+                          )),
+                    ];
+                  },
+                  
+                  // --- KUSTOMISASI ITEM LIST AGAR LEBARNYA PAS ---
+                  items: [
+                    DropdownMenuItem<CategoryModel?>(
+                      value: null,
+                      child: SizedBox(
+                        width: constraints.maxWidth - 30, // Mengunci lebar list mengikuti lebar Container (dikurangi space icon)
+                        child: const Text("Semua Kategori", overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                    ...categories.map((k) => DropdownMenuItem<CategoryModel?>(
+                          value: k,
+                          child: SizedBox(
+                            width: constraints.maxWidth - 30, // Mengunci lebar list item
+                            child: Text(k.nama, overflow: TextOverflow.ellipsis),
+                          ),
+                        )),
+                  ],
+                  onChanged: (value) => setState(() => selectedCategory = value),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 12),
+      // 2. Tombol Tambah Barang (Kanan)
+      Expanded(
+        child: SizedBox(
+          height: 45,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              if (selectedCategory == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Pilih kategori terlebih dahulu")),
+                );
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => TambahBarangPage(kategori: selectedCategory!)),
+              ).then((value) {
+                if (value == true) loadData();
+              });
+            },
+            icon: const Icon(Icons.add, size: 18, color: Colors.white),
+            label: const Text(
+              "Tambah Barang",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: warnaBiruDesain,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+                      
                       Expanded(
                         child: items.isEmpty
                             ? EmptyState(
@@ -144,12 +237,14 @@ class _BarangPageState extends State<BarangPage> {
                                 subtitle: selectedCategory == null
                                     ? "Pilih kategori lalu tambah produk baru."
                                     : "Tidak ada produk di kategori ini.",
-                                color: AppColors.barang,
+                                color: warnaBiruDesain,
                               )
                             : GridView.builder(
                                 padding: EdgeInsets.symmetric(
-                                    horizontal: r.horizontalPadding, vertical: 4),
-                                itemCount: items.length + 1,
+                                  horizontal: r.horizontalPadding,
+                                  vertical: 4,
+                                ),
+                                itemCount: items.length,
                                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: r.isMobile ? 2 : (r.isTablet ? 3 : 4),
                                   crossAxisSpacing: 12,
@@ -157,64 +252,13 @@ class _BarangPageState extends State<BarangPage> {
                                   childAspectRatio: 0.66,
                                 ),
                                 itemBuilder: (context, index) {
-                                  if (index == 0) return _addCard();
-                                  return _itemCard(items[index - 1]);
+                                  return _itemCard(items[index]);
                                 },
                               ),
                       ),
                     ],
                   ),
                 ),
-    );
-  }
-
-  Widget _addCard() {
-    final isActive = selectedCategory != null;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () {
-          if (!isActive) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Pilih kategori terlebih dahulu")),
-            );
-            return;
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => TambahBarangPage(kategori: selectedCategory!)),
-          ).then((value) {
-            if (value == true) loadData();
-          });
-        },
-        child: Opacity(
-          opacity: isActive ? 1 : 0.5,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.barang.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: AppColors.barang, width: 2),
-            ),
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_circle_outline, size: 48, color: AppColors.barang),
-                SizedBox(height: 10),
-                Text(
-                  "Tambah\nBarang",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.barang,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -257,7 +301,7 @@ class _BarangPageState extends State<BarangPage> {
                   Text(
                     formatRupiah(item.harga),
                     style: const TextStyle(
-                      color: AppColors.barang,
+                      color: Color(0xFF0066FF),
                       fontWeight: FontWeight.w700,
                     ),
                   ),

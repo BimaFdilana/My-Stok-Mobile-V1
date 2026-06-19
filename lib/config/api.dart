@@ -1,5 +1,5 @@
 class Api {
-  static const String host = "http://10.25.105.44:8000";
+  static const String host = "http://10.188.100.90:8000";
   static const String baseUrl = "$host/api";
 
   /// Bangun URL gambar dari path storage (mis. "item_images/foo.png").

@@ -16,6 +16,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   bool isLoading = false;
   bool hidePassword = true;
+  String? errorMessage; 
 
   late AnimationController _anim;
   late Animation<double> _fade;
@@ -37,7 +38,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Future<void> login() async {
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      errorMessage = null; 
+    });
+
     try {
       final data = await AuthService.login(
         username: usernameController.text.trim(),
@@ -49,19 +54,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       if (data['success'] == true) {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        _showSnack(data['message'] ?? data['error'] ?? "Login gagal", AppColors.danger);
+        setState(() {
+          errorMessage = data['message'] ?? data['error'] ?? "Login gagal";
+        });
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => isLoading = false);
-      _showSnack("Error: $e", AppColors.danger);
+      setState(() {
+        isLoading = false;
+        errorMessage = "Error: $e";
+      });
     }
-  }
-
-  void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
-    );
   }
 
   @override
@@ -89,41 +92,52 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     position: _slide,
                     child: Column(
                       children: [
-                        // Brand
+                        // 1. BRAND SECTION 
                         Container(
-                          width: 88,
-                          height: 88,
+                          width: 80,
+                          height: 80,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
                             boxShadow: AppShadow.md,
                           ),
-                          child: const Icon(Icons.storefront,
-                              size: 44, color: AppColors.primary),
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/img/logo4.png', 
+                              fit: BoxFit.scaleDown,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.storefront, size: 40, color: AppColors.primary);
+                              },
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          "MyStok",
+                          "MyStock", 
                           style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
                             letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Masuk untuk melanjutkan",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.85),
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            "Kelola stok, transaksi, dan laporan usaha Anda dengan mudah dan cepat.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withOpacity(0.85), // Perbaikan: menggunakan .withOpacity
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 32),
 
-                        // Form card
+                        // 2. FORM CARD PANEL 
                         Container(
-                          padding: const EdgeInsets.all(22),
+                          padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -132,25 +146,78 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Username",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary)),
+                              const Text(
+                                "Selamat Datang",
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                "Masuk ke akun Anda untuk melanjutkan",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+
+                              // ERROR ALERT (Perbaikan: Format Hex Color yang valid)
+                              if (errorMessage != null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF2F2), // Soft red (0xFF + Hex)
+                                    border: Border.all(color: const Color(0xFFFCA5A5)), // Light red border
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.error_outline, color: Color(0xFFB91C1C), size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          errorMessage!,
+                                          style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // FIELD USERNAME
+                              const Text(
+                                "Username",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: usernameController,
+                                textInputAction: TextInputAction.next,
                                 decoration: const InputDecoration(
                                   hintText: "Masukkan username",
                                   prefixIcon: Icon(Icons.person_outline),
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              const Text("Kata Sandi",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary)),
+                              const SizedBox(height: 18),
+
+                              // FIELD KATA SANDI
+                              const Text(
+                                "Kata Sandi",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: passwordController,
@@ -168,7 +235,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 28),
+
+                              // TOMBOL MASUK
                               AppButton(
                                 label: "Masuk",
                                 icon: Icons.login,
@@ -178,27 +247,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                             ],
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.center,
-                        //   children: [
-                        //     Text("Belum punya akun? ",
-                        //         style: TextStyle(
-                        //             color: Colors.white.withValues(alpha: 0.9))),
-                        //     GestureDetector(
-                        //       onTap: () =>
-                        //           Navigator.pushNamed(context, '/register'),
-                        //       child: const Text(
-                        //         "Daftar",
-                        //         style: TextStyle(
-                        //           color: Colors.white,
-                        //           fontWeight: FontWeight.w700,
-                        //           decoration: TextDecoration.underline,
-                        //         ),
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
                       ],
                     ),
                   ),

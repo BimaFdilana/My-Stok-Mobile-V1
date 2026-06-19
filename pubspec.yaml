@@ -42,6 +42,7 @@ dependencies:
   shared_preferences: ^2.5.3
   image_picker: ^1.0.7
   intl: ^0.19.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -66,7 +67,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
+  assets:
+    - lib/assets/img/logo4.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
